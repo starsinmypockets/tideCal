@@ -1,8 +1,5 @@
 body {
   font-family: 'Source Sans Pro', 'Trebuchet MS', 'Lucida Grande', 'Bitstream Vera Sans', 'Helvetica Neue', sans-serif;
-  font-size: 30px;
-  margin: 0;
-  text-align: center;
   color: #293c4b;
 }
 
@@ -10,3 +7,10 @@ img {
   margin: 20px 0;
   max-width: 200px;
 }
+
+
+h1 {text-align:center}
+label {margin-right:1em}
+#root {margin: 2em}
+.buttons button {margin:1em}
+input[type=radio] {margin-right:.4em} 
