@@ -1,13 +1,18 @@
 port module Main exposing (..)
 
-import Html exposing (Html, text, div, img, h1, h2, h3, p, button, ul)
+import Html exposing (Html, text, div, img, h1, h2, h3, p, button, ul, li)
 import Html.Attributes exposing (src, class, classList)
 import Html.Events exposing (onClick)
 import Debug exposing (log)
+import Json.Decode exposing (..)
 import Tuple
 
 
 ---- MODEL ----
+
+
+type alias Cal =
+    { summary : String }
 
 
 type alias Model =
@@ -16,7 +21,7 @@ type alias Model =
     , discovery_docs : List String
     , scopes : String
     , messages : List ApiRes
-    , calendars : List String
+    , calendars : List Cal
     }
 
 
@@ -26,7 +31,7 @@ model =
     , discovery_docs = [ "https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest" ]
     , scopes = "https://www.googleapis.com/auth/calendar"
     , count = 0
-    , messages = [ ( "", "" ) ]
+    , messages = []
     , calendars = []
     }
 
@@ -92,13 +97,59 @@ update msg model =
             ( model, Cmd.none )
 
 
+handleApiRes : ApiRes -> Model -> ( Model, Cmd Msg )
+handleApiRes res model_ =
+    let
+        -- log api call
+        model =
+            { model_ | messages = res :: model_.messages }
+
+        payload =
+            Tuple.first res
+
+        msg =
+            Tuple.second res
+    in
+        case msg of
+            "init" ->
+                ( model, Cmd.none )
+
+            "auth" ->
+                ( model, fromElm ( [], "getCalendars" ) )
+
+            "signout" ->
+                ( { model | calendars = [] }, Cmd.none )
+
+            "getCalendars" ->
+                let
+                    calDecoder =
+                        map Cal (field "summary" string)
+
+                    calListDecoder =
+                        list calDecoder
+
+                    cals =
+                        decodeString calListDecoder payload
+                in
+                    case cals of
+                        Ok vals ->
+                            ( { model | calendars = vals }, Cmd.none )
+
+                        Err msg ->
+                            ( model, Cmd.none )
+
+            -- noop
+            _ ->
+                ( model, Cmd.none )
+
+
 
 ---- VIEW ----
 
 
 introText : String
 introText =
-    "Description hercome_"
+    "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat."
 
 
 view : Model -> Html Msg
@@ -106,12 +157,18 @@ view model =
     div [ classList [ ( "row", True ), ( "container", True ) ] ]
         [ h1 [] [ text " Tides for Google Calendar " ]
         , p [] [ text introText ]
-        , ul [ class "row" ] (messageList model.messages)
-        , div [ class "row" ] (calendarList model.calendars)
+        , div [ class "row" ]
+            [ h2 [] [ text "Your calendars" ]
+            , ul [] (calendarList model.calendars)
+            ]
         , div [ classList [ ( "row", True ), ( "buttons", True ) ] ]
             [ button [ onClick (Send ( [], "auth" )) ] [ text "Authenticate" ]
             , button [ onClick (Send ( [], "signout" )) ] [ text "Sign Out" ]
             , button [ onClick (Send ( [], "init" )) ] [ text "INIT" ]
+            ]
+        , div [ class "row" ]
+            [ h2 [] [ text "debug log" ]
+            , ul [] (messageList model.messages)
             ]
         ]
 
@@ -126,10 +183,7 @@ messageList msgs =
         (\res acc ->
             let
                 markup =
-                    div [ class "row" ]
-                        [ p [ class "col-md-4" ] [ text (Tuple.first res) ]
-                        , p [ class "col-md-4" ] [ text (Tuple.second res) ]
-                        ]
+                    li [] [ text (Tuple.first res), text "  --  ", text (Tuple.second res) ]
             in
                 (::)
                     markup
@@ -139,11 +193,11 @@ messageList msgs =
         msgs
 
 
-calendarList : List String -> List (Html msg)
+calendarList : List Cal -> List (Html msg)
 calendarList cals =
     List.foldr
         (\cal acc ->
-            p [ class "col-md-4" ] [ text cal ]
+            li [] [ text cal.summary ]
                 :: acc
         )
         []
