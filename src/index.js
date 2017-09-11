@@ -32,11 +32,24 @@ app.ports.fromElm.subscribe(function (msg) {
       break;
 
     case "isSignedIn":
-      gapi.auth2.getAuthInstance().isSignedIn.get()
-
-    case "getCalendars":
+      var status = getSigninStatus();
+      app.ports.fromJs.send(["" + status, "isSignedIn"]);
       break;
     
+    case "signout":
+      gapi.auth2.getAuthInstance().signOut();
+      app.ports.fromJs.send(["Wait for status update", "signout"]);
+
+    case "getCalendars":
+        gape.client.calendar.calendarList.get().then(function (res) {
+          console.log("calendarList", res)
+          app.ports.fromJs.send([JSON.stringify(res), "getCalendars"]);   
+        })
+      break;
+    
+    case "eventsFromPrimaryCalendar":
+      break;
+
     case "addCalendar":
       break;
   }
@@ -51,12 +64,20 @@ function initClient() {
 			clientId: CLIENT_ID,
 			scope: SCOPES
 		}).then(function () {
-      var status = gapi.auth2.getAuthInstance().isSignedIn.get()
+      var status = getSigninStatus();
       // update signin status
+      gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
       app.ports.fromJs.send(["signinStatus- " + status, "init"]);
 		});
   }
 
+function getSigninStatus() {
+  return gapi.auth2.getAuthInstance().isSignedIn.get()
+}
+
+function updateSigninStatus(isSignedIn) {
+  app.ports.fromJs.send(["" + isSignedIn, "updateSigninStatus"])
+}
 // Next step is API call / res via port
 // figure out how to load the api here
 // port quickstart.html to elm / js wraps

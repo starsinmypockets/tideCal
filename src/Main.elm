@@ -16,6 +16,7 @@ type alias Model =
     , discovery_docs : List String
     , scopes : String
     , messages : List ApiRes
+    , calendars : List String
     }
 
 
@@ -26,6 +27,7 @@ model =
     , scopes = "https://www.googleapis.com/auth/calendar"
     , count = 0
     , messages = [ ( "", "" ) ]
+    , calendars = []
     }
 
 
@@ -72,9 +74,39 @@ doSignout msg model =
     ( { model | count = 0 }, Cmd.none )
 
 
-handleApiRes : ApiRes -> Msg -> Model -> ( Model, Cmd Msg )
-handleApiRes res msg model =
-    ( { model | messages = res :: model.messages }, Cmd.none )
+handleApiRes : ApiRes -> Model -> ( Model, Cmd Msg )
+handleApiRes res model_ =
+    let
+        -- log api call
+        model =
+            { model_ | messages = res :: model_.messages }
+
+        msg =
+            Tuple.second res
+    in
+        case msg of
+            "init" ->
+                ( model, Cmd.none )
+
+            "auth" ->
+                ( model, Cmd.none )
+
+            "signout" ->
+                ( { model | calendars = [] }, Cmd.none )
+
+            "getCalendars" ->
+                -- decode json object
+                ( model, Cmd.none )
+
+            "eventsFromPrimaryCalendar" ->
+                ( model, Cmd.none )
+
+            "addCalendar" ->
+                ( model, Cmd.none )
+
+            -- noop
+            _ ->
+                ( model, Cmd.none )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -90,7 +122,7 @@ update msg model =
             ( model, fromElm list )
 
         Rcv res ->
-            handleApiRes res msg model
+            handleApiRes res model
 
         _ ->
             ( model, Cmd.none )
@@ -111,29 +143,13 @@ view model =
         [ h1 [] [ text " Tides for Google Calendar " ]
         , p [] [ text introText ]
         , ul [ class "row" ] (messageList model.messages)
-        , div [ class "row" ] (calendarList cals)
+        , div [ class "row" ] (calendarList model.calendars)
         , div [ classList [ ( "row", True ), ( "buttons", True ) ] ]
             [ button [ onClick (Send ( [], "auth" )) ] [ text "Authenticate" ]
             , button [ onClick (Send ( [], "signout" )) ] [ text "Sign Out" ]
             , button [ onClick (Send ( [], "init" )) ] [ text "INIT" ]
             ]
         ]
-
-
-cals =
-    [ { title = "Foo"
-      , desc = "Foobar"
-      }
-    , { title = "Baz"
-      , desc = "Bazbar"
-      }
-    , { title = "Bim"
-      , desc = "Bimbar"
-      }
-    , { title = "Boo"
-      , desc = "Boobar"
-      }
-    ]
 
 
 
@@ -159,13 +175,11 @@ messageList msgs =
         msgs
 
 
+calendarList : List String -> List (Html msg)
 calendarList cals =
     List.foldr
         (\cal acc ->
-            div [ class "row" ]
-                [ p [ class "col-md-4" ] [ text cal.title ]
-                , p [ class "col-md-4" ] [ text cal.desc ]
-                ]
+            p [ class "col-md-4" ] [ text cal ]
                 :: acc
         )
         []
