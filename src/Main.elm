@@ -38,7 +38,6 @@ init =
 
 
 ---- UPDATE ----
--- outbound port send str
 
 
 port fromElm : ( List String, String ) -> Cmd msg
@@ -72,41 +71,6 @@ doAuth msg model =
 doSignout : Msg -> Model -> ( Model, Cmd Msg )
 doSignout msg model =
     ( { model | count = 0 }, Cmd.none )
-
-
-handleApiRes : ApiRes -> Model -> ( Model, Cmd Msg )
-handleApiRes res model_ =
-    let
-        -- log api call
-        model =
-            { model_ | messages = res :: model_.messages }
-
-        msg =
-            Tuple.second res
-    in
-        case msg of
-            "init" ->
-                ( model, Cmd.none )
-
-            "auth" ->
-                ( model, Cmd.none )
-
-            "signout" ->
-                ( { model | calendars = [] }, Cmd.none )
-
-            "getCalendars" ->
-                -- decode json object
-                ( model, Cmd.none )
-
-            "eventsFromPrimaryCalendar" ->
-                ( model, Cmd.none )
-
-            "addCalendar" ->
-                ( model, Cmd.none )
-
-            -- noop
-            _ ->
-                ( model, Cmd.none )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
