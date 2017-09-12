@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html>
-  <head>
+    <head>
     <title>Google Calendar API Quickstart</title>
     <meta charset='utf-8' />
   </head>
@@ -129,7 +129,8 @@
           }
         });
       }
-
+      
+      // @@TODO Generalize this for gapi ports implementation
       function addTestCalendar () {
           gapi.client.calendar.calendars.insert({
             summary: "Test it out!!"

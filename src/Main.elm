@@ -34,19 +34,27 @@ type alias Cal =
     { summary : String }
 
 
+type alias CalEvent =
+    { description : String }
+
+
+type alias CalEvents =
+    List CalEvent
+
+
 type alias Model =
     { client_id : String
     , discovery_docs : List String
     , scopes : String
     , messages : List ApiRes
     , calendars : List Cal
-    , startDate : String
-    , endDate : String
-    , calName : String
-    , units : String
-    , error : String
-    , noaaResString : String
-    , station : String
+    , startDate : Maybe String
+    , endDate : Maybe String
+    , calName : Maybe String
+    , units : Maybe String
+    , error : Maybe String
+    , noaaData : Maybe NOAAApiRes
+    , station : Maybe String
     }
 
 
@@ -57,13 +65,13 @@ model =
     , scopes = "https://www.googleapis.com/auth/calendar"
     , messages = []
     , calendars = []
-    , startDate = ""
-    , endDate = ""
-    , station = ""
-    , calName = ""
-    , units = "English"
-    , noaaResString = ""
-    , error = ""
+    , startDate = Nothing
+    , endDate = Nothing
+    , station = Nothing
+    , calName = Nothing
+    , units = Just "English"
+    , error = Nothing
+    , noaaData = Nothing
     }
 
 
@@ -138,19 +146,19 @@ update msg model =
             ( { model | messages = ( "NOAA API Err", "ERR need to map" ) :: model.messages }, Cmd.none )
 
         Station txt ->
-            ( { model | station = txt }, Cmd.none )
+            ( { model | station = Just txt }, Cmd.none )
 
         StartDate date ->
-            ( { model | startDate = date }, Cmd.none )
+            ( { model | startDate = Just date }, Cmd.none )
 
         EndDate date ->
-            ( { model | endDate = date }, Cmd.none )
+            ( { model | endDate = Just date }, Cmd.none )
 
         CalName name ->
-            ( { model | calName = name }, Cmd.none )
+            ( { model | calName = Just name }, Cmd.none )
 
         Units txt ->
-            ( { model | units = txt }, Cmd.none )
+            ( { model | units = Just txt }, Cmd.none )
 
         _ ->
             ( model, Cmd.none )
@@ -252,7 +260,33 @@ handleNOAARes data model =
             data
                 |> log "noaa data"
     in
-        ( { model | messages = ( "NOAA Response SUCCESS", "see console" ) :: model.messages }, Cmd.none )
+        -- generate calendar data
+        -- insert new calendar with events
+        --      create calendar
+        --      add events
+        -- catch that in update
+        --      confirm success
+        --done
+        ( { model
+            | messages = ( "NOAA Response SUCCESS", "see console" ) :: model.messages
+            , noaaData = Just data
+          }
+        , Cmd.none
+        )
+
+
+createCalendarEvents data =
+    let
+        tides =
+            data.data
+
+        stationData =
+            data.station
+
+        station =
+            stationData.name
+    in
+        []
 
 
 
