@@ -38,7 +38,7 @@ type alias CalEvent =
     { description : String }
 
 
-type alias CalEvents =
+type alias CalEventList =
     List CalEvent
 
 
@@ -259,6 +259,9 @@ handleNOAARes data model =
         d =
             data
                 |> log "noaa data"
+
+        calEvents =
+            createCalendarEvents data
     in
         -- generate calendar data
         -- insert new calendar with events
@@ -275,6 +278,7 @@ handleNOAARes data model =
         )
 
 
+createCalendarEvents : NOAAApiRes -> CalEventList
 createCalendarEvents data =
     let
         tides =
@@ -286,7 +290,28 @@ createCalendarEvents data =
         station =
             stationData.name
     in
-        []
+        List.map (tideToCalEvent station) tides
+            |> log "return tides"
+
+
+tideToCalEvent : String -> Tide -> CalEvent
+tideToCalEvent station tide =
+    { description = (getTideTypeString tide) ++ " -- " ++ station ++ " " ++ tide.date }
+
+
+getTideTypeString : Tide -> String
+getTideTypeString tide =
+    let
+        tt =
+            String.trim tide.tideType
+                |> log "TT"
+    in
+        if tt == "H" || tt == "HH" then
+            "High Tide"
+        else if tt == "L" || tt == "LL" then
+            "Low Tide"
+        else
+            "Unknown Tide"
 
 
 
