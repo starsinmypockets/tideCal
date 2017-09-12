@@ -3,6 +3,7 @@ port module Main exposing (..)
 import Html exposing (Html, text, div, img, h1, h2, h3, p, button, ul, li, input, label, form, fieldset)
 import Html.Attributes exposing (src, class, classList, id, for, type_, defaultValue, name, value)
 import Html.Events exposing (onClick, onInput, onWithOptions, Options)
+import Http
 import Debug exposing (log)
 import Json.Decode exposing (..)
 import Tuple
@@ -81,6 +82,7 @@ type Msg
     | EndDate String
     | CalName String
     | Units String
+    | NOAARes (Result Http.Error String)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -90,7 +92,7 @@ update msg model =
             ( model, fromElm list )
 
         Rcv res ->
-            handleApiRes res model
+            handleGApiRes res model
 
         Submit ->
             let
@@ -103,6 +105,12 @@ update msg model =
 
                     Ok msg ->
                         ( { model | messages = ( "Submit Ok", msg ) :: model.messages }, Cmd.none )
+
+        NOAARes (Ok data) ->
+            handleNOAARes data model
+
+        NOAARes (Err msg) ->
+            ( { model | messages = ( "NOAA API Err", "ERR need to map" ) :: model.messages }, Cmd.none )
 
         Station txt ->
             ( { model | station = txt }, Cmd.none )
@@ -123,8 +131,8 @@ update msg model =
             ( model, Cmd.none )
 
 
-handleApiRes : ApiRes -> Model -> ( Model, Cmd Msg )
-handleApiRes res model_ =
+handleGApiRes : ApiRes -> Model -> ( Model, Cmd Msg )
+handleGApiRes res model_ =
     let
         -- log api call
         model =
@@ -167,6 +175,39 @@ handleApiRes res model_ =
             -- noop
             _ ->
                 ( model, Cmd.none )
+
+
+
+--- NOAA API STUFF ---
+
+
+type alias StationMetaData =
+    { id : String, name : String, lat : Float, lon : Float }
+
+
+
+-- @@TODO - figure out how to decode the api response from NOAA
+
+
+stationDecoder =
+    map StationMetaData (field "metadata" string)
+
+
+url =
+    "https://tidesandcurrents.noaa.gov/api/datagetter?station=9414290&begin_date=20120101&end_date=20120102&product=high_low&format=json&interval=hilo&units=english&time_zone=lst&datum=MTL"
+
+
+noaaResStr =
+    Http.send NOAARes <| Http.get url (stationDecoder)
+
+
+handleNOAARes data model =
+    let
+        d =
+            data
+                |> log "noaa data"
+    in
+        ( { model | messages = ( "NOAA Response SUCCESS", "see console" ) :: model.messages }, Cmd.none )
 
 
 
