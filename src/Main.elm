@@ -26,6 +26,7 @@ type alias Model =
     , station : String
     , calName : String
     , units : String
+    , error : String
     }
 
 
@@ -41,6 +42,7 @@ model =
     , station = ""
     , calName = ""
     , units = "English"
+    , error = ""
     }
 
 
@@ -69,8 +71,7 @@ type alias ApiRes =
 
 
 type Msg
-    = Auth
-    | Signout
+    = Signout
     | Send ( List String, String )
     | Rcv ( GapiRes, ApiCmd )
     | NoOp
@@ -82,25 +83,9 @@ type Msg
     | Units String
 
 
-doAuth : Msg -> Model -> ( Model, Cmd Msg )
-doAuth msg model =
-    ( model, Cmd.none )
-
-
-doSignout : Msg -> Model -> ( Model, Cmd Msg )
-doSignout msg model =
-    ( model, Cmd.none )
-
-
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        Auth ->
-            doAuth msg model
-
-        Signout ->
-            doSignout msg model
-
         Send list ->
             ( model, fromElm list )
 
@@ -109,11 +94,15 @@ update msg model =
 
         Submit ->
             let
-                m =
-                    model
-                        |> log "MODEL"
+                valid =
+                    (validateDates >> validateStation >> validateCalName) model
             in
-                ( model, Cmd.none )
+                case valid of
+                    Err msg ->
+                        ( { model | messages = ( "Submit Err", msg ) :: model.messages }, Cmd.none )
+
+                    Ok msg ->
+                        ( { model | messages = ( "Submit Ok", msg ) :: model.messages }, Cmd.none )
 
         Station txt ->
             ( { model | station = txt }, Cmd.none )
@@ -178,6 +167,22 @@ handleApiRes res model_ =
             -- noop
             _ ->
                 ( model, Cmd.none )
+
+
+
+---- VALIDATION ----
+
+
+validateDates model =
+    Ok "Ok"
+
+
+validateStation model =
+    Ok "Ok"
+
+
+validateCalName model =
+    Ok "Ok"
 
 
 
