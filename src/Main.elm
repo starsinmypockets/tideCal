@@ -5,11 +5,29 @@ import Html.Attributes exposing (src, class, classList, id, for, type_, defaultV
 import Html.Events exposing (onClick, onInput, onWithOptions, Options)
 import Http
 import Debug exposing (log)
-import Json.Decode exposing (..)
+import Json.Decode as JD exposing (..)
 import Tuple
 
 
 ---- MODEL ----
+
+
+type alias StationData =
+    { id : String, name : String, lat : String, lon : String }
+
+
+type alias TideList =
+    List Tide
+
+
+type alias Tide =
+    { date : String
+    , tideType : String
+    }
+
+
+type alias NOAAApiRes =
+    { station : StationData, data : TideList }
 
 
 type alias Cal =
@@ -24,10 +42,11 @@ type alias Model =
     , calendars : List Cal
     , startDate : String
     , endDate : String
-    , station : String
     , calName : String
     , units : String
     , error : String
+    , noaaResString : String
+    , station : String
     }
 
 
@@ -43,6 +62,7 @@ model =
     , station = ""
     , calName = ""
     , units = "English"
+    , noaaResString = ""
     , error = ""
     }
 
@@ -82,7 +102,7 @@ type Msg
     | EndDate String
     | CalName String
     | Units String
-    | NOAARes (Result Http.Error String)
+    | NOAARes (Result Http.Error NOAAApiRes)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -104,10 +124,15 @@ update msg model =
                         ( { model | messages = ( "Submit Err", msg ) :: model.messages }, Cmd.none )
 
                     Ok msg ->
-                        ( { model | messages = ( "Submit Ok", msg ) :: model.messages }, Cmd.none )
+                        ( { model | messages = ( "Submit Ok", msg ) :: model.messages }, doNOOAReq )
 
         NOAARes (Ok data) ->
-            handleNOAARes data model
+            let
+                debug =
+                    data
+                        |> log "noaa ok"
+            in
+                handleNOAARes data model
 
         NOAARes (Err msg) ->
             ( { model | messages = ( "NOAA API Err", "ERR need to map" ) :: model.messages }, Cmd.none )
@@ -179,26 +204,46 @@ handleGApiRes res model_ =
 
 
 --- NOAA API STUFF ---
-
-
-type alias StationMetaData =
-    { id : String, name : String, lat : Float, lon : Float }
-
-
-
 -- @@TODO - figure out how to decode the api response from NOAA
 
 
+stationDecoder : Decoder StationData
 stationDecoder =
-    map StationMetaData (field "metadata" string)
+    map4
+        StationData
+        (field "id" string)
+        (field "name" string)
+        (field "lat" string)
+        (field "lon" string)
+
+
+tideDecoder : Decoder Tide
+tideDecoder =
+    map2
+        Tide
+        (field "t" string)
+        (field "ty" string)
+
+
+tideListDecoder : Decoder TideList
+tideListDecoder =
+    (list tideDecoder)
+
+
+noaaDecoder : Decoder NOAAApiRes
+noaaDecoder =
+    map2
+        NOAAApiRes
+        (field "metadata" stationDecoder)
+        (field "data" tideListDecoder)
 
 
 url =
     "https://tidesandcurrents.noaa.gov/api/datagetter?station=9414290&begin_date=20120101&end_date=20120102&product=high_low&format=json&interval=hilo&units=english&time_zone=lst&datum=MTL"
 
 
-noaaResStr =
-    Http.send NOAARes <| Http.get url (stationDecoder)
+doNOOAReq =
+    Http.send NOAARes <| Http.get url noaaDecoder
 
 
 handleNOAARes data model =
@@ -264,7 +309,7 @@ view model =
                     [ p [ class "col-md-3" ] [ text "Units:" ]
                     , radio "English"
                     , radio "Metric"
-                    , button [ onWithOptions "click" { preventDefault = True, stopPropagation = True } (Json.Decode.succeed Submit) ] [ text "Submit" ]
+                    , button [ onWithOptions "click" { preventDefault = True, stopPropagation = True } (JD.succeed Submit) ] [ text "Submit" ]
                     ]
 
                 -- radio english / metric
