@@ -53,8 +53,12 @@ app.ports.fromElm.subscribe(function (msg) {
       break;
 
     case "addCalendar":
-      addCalendar(payload)
+      addCalendar(payload[0])
       break;
+    case 'addEvents':
+      var calId = payload[0];
+      var events = JSON.parse(payload[1]);
+      addEvents(calId, events);
   }
 })
 
@@ -84,13 +88,27 @@ function updateSigninStatus(isSignedIn) {
 
 function addCalendar (calName) {
     console.log("gapi addCalendar", calName);
-    name = calName[0];
     gapi.client.calendar.calendars.insert({
-      summary: name
+      summary: calName
     }).then(function (res) {
 		  console.log("gapi addCalendar res", res);	
-			app.ports.fromJs.send([JSON.stringify(res), "addCalendar"]);
+			app.ports.fromJs.send([res.result.id, "addCalendar"]);
     })
 }
 
-
+function addEvents (calId, events) {
+  console.log("addEvents", arguments);
+  var batch = gapi.client.newBatch();
+  for (var i = 0; i < events.length; i++) {
+    var x = gapi.client.calendar.events.quickAdd({
+      calendarId: calId,
+      text: events[i].description
+    });
+    batch.add(x);
+  }
+  batch.execute(function (res) {
+    console.log("addEvents res", res);
+    // return id of inserted calendar
+    app.ports.fromJs.send([JSON.stringify(res), "addEvents"]);
+  })
+}

@@ -57,7 +57,9 @@ type alias Model =
     , units : Maybe String
     , error : Maybe String
     , noaaData : Maybe NOAAApiRes
-    , station : Maybe String
+    , calEventsJson : Maybe String
+    , targetCalId : Maybe String
+    , station : Maybe String --@@TODO we need to get the station into the model somehow so we can add it to the calendar description
     }
 
 
@@ -75,6 +77,8 @@ model =
     , units = Just "English"
     , error = Nothing
     , noaaData = Nothing
+    , targetCalId = Nothing
+    , calEventsJson = Nothing
     }
 
 
@@ -208,6 +212,18 @@ handleGApiRes res model_ =
                         Err msg ->
                             ( model, Cmd.none )
 
+            "addCalendar" ->
+                let
+                    calendarId =
+                        Tuple.first res
+                in
+                    case (model.calEventsJson) of
+                        Just json ->
+                            ( { model | targetCalId = Just calendarId }, (fromElm ( [ calendarId, json ], "addEvents" )) )
+
+                        Nothing ->
+                            ( model, Cmd.none )
+
             -- noop
             _ ->
                 ( model, Cmd.none )
@@ -269,6 +285,7 @@ handleNOAARes data model =
         ( { model
             | messages = ( "NOAA Response SUCCESS", "see console" ) :: model.messages
             , noaaData = Just data
+            , calEventsJson = Just calEventsJson
           }
         , fromElm ( [ "testCal1" ], "addCalendar" )
           -- get validated calname from model
@@ -316,7 +333,7 @@ createCalendarEvents data =
 
 tideToCalEvent : Tide -> CalEvent
 tideToCalEvent tide =
-    { description = (getTideTypeString tide) ++ " -- " ++ " " ++ tide.date }
+    { description = (getTideTypeString tide) ++ " -- " ++ " " ++ (getTideDateString tide.date) }
 
 
 getTideTypeString : Tide -> String
@@ -332,6 +349,49 @@ getTideTypeString tide =
             "Low Tide"
         else
             "Unknown Tide"
+
+
+getTideDateString : String -> String
+getTideDateString date =
+    let
+        dd =
+            String.split " " date
+
+        day =
+            case (List.head dd) of
+                Just str ->
+                    str
+
+                Nothing ->
+                    ""
+
+        time =
+            case (List.tail dd) of
+                Just [ str ] ->
+                    str
+
+                _ ->
+                    ""
+
+        dayBits =
+            String.split "-" day
+    in
+        case dayBits of
+            [ a, b, c ] ->
+                let
+                    mo =
+                        Result.withDefault 0 (String.toInt b) |> toString
+
+                    day =
+                        Result.withDefault 0 (String.toInt c) |> toString
+
+                    year =
+                        Result.withDefault 0 (String.toInt a) |> toString
+                in
+                    String.join "/" [ mo, day, year ] ++ " " ++ time
+
+            _ ->
+                date
 
 
 
