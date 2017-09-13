@@ -53,6 +53,7 @@ app.ports.fromElm.subscribe(function (msg) {
       break;
 
     case "addCalendar":
+      addCalendar(payload)
       break;
   }
 })
@@ -80,3 +81,16 @@ function getSigninStatus() {
 function updateSigninStatus(isSignedIn) {
   app.ports.fromJs.send(["" + isSignedIn, "updateSigninStatus"])
 }
+
+function addCalendar (calName) {
+    console.log("gapi addCalendar", calName);
+    name = calName[0];
+    gapi.client.calendar.calendars.insert({
+      summary: name
+    }).then(function (res) {
+		  console.log("gapi addCalendar res", res);	
+			app.ports.fromJs.send([JSON.stringify(res), "addCalendar"]);
+    })
+}
+
+

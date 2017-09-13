@@ -8,8 +8,10 @@ import Debug exposing (log)
 import Json.Decode as JD exposing (Decoder)
 import Json.Encode as JE
 import Tuple
+import Date exposing (Date, Day(..), day, dayOfWeek, month, year)
 
 
+-- import DatePicker exposing (defaultSettings)
 ---- MODEL ----
 
 
@@ -268,7 +270,8 @@ handleNOAARes data model =
             | messages = ( "NOAA Response SUCCESS", "see console" ) :: model.messages
             , noaaData = Just data
           }
-        , Cmd.none
+        , fromElm ( [ "testCal1" ], "addCalendar" )
+          -- get validated calname from model
         )
 
 
