@@ -28,7 +28,7 @@ type alias Tide =
 
 
 type alias NOAAApiRes =
-    { station : StationData, data : TideList }
+    { predictions : TideList }
 
 
 type alias Cal =
@@ -144,7 +144,7 @@ update msg model =
                 handleNOAARes data model
 
         NOAARes (Err msg) ->
-            ( { model | messages = ( "NOAA API Err", "ERR need to map" ) :: model.messages }, Cmd.none )
+            ( { model | messages = (handleHttpError msg) :: model.messages }, Cmd.none )
 
         Station txt ->
             ( { model | station = Just txt }, Cmd.none )
@@ -216,22 +216,12 @@ handleGApiRes res model_ =
 -- @@TODO - figure out how to decode the api response from NOAA
 
 
-stationDecoder : Decoder StationData
-stationDecoder =
-    JD.map4
-        StationData
-        (JD.field "id" JD.string)
-        (JD.field "name" JD.string)
-        (JD.field "lat" JD.string)
-        (JD.field "lon" JD.string)
-
-
 tideDecoder : Decoder Tide
 tideDecoder =
     JD.map2
         Tide
         (JD.field "t" JD.string)
-        (JD.field "ty" JD.string)
+        (JD.field "type" JD.string)
 
 
 tideListDecoder : Decoder TideList
@@ -241,14 +231,13 @@ tideListDecoder =
 
 noaaDecoder : Decoder NOAAApiRes
 noaaDecoder =
-    JD.map2
+    JD.map
         NOAAApiRes
-        (JD.field "metadata" stationDecoder)
-        (JD.field "data" tideListDecoder)
+        (JD.field "predictions" tideListDecoder)
 
 
 noaaUrl =
-    "https://tidesandcurrents.noaa.gov/api/datagetter?station=9414290&begin_date=20120101&end_date=20120102&product=high_low&format=json&interval=hilo&units=english&time_zone=lst&datum=MTL"
+    "https://tidesandcurrents.noaa.gov/api/datagetter?station=9414290&begin_date=20180101&end_date=20180102&product=predictions&format=json&interval=hilo&units=english&time_zone=lst&datum=MTL"
 
 
 doNOOAReq =
@@ -283,9 +272,22 @@ handleNOAARes data model =
         )
 
 
-calList : CalEventList
-calList =
-    [ { description = "Foo" }, { description = "Bar" } ]
+handleHttpError msg =
+    case msg of
+        Http.BadUrl response ->
+            ( "Bad Url", response )
+
+        Http.NetworkError ->
+            ( "No Network", "" )
+
+        Http.Timeout ->
+            ( "Network Timeout", "" )
+
+        Http.BadStatus response ->
+            ( "API Failure", (toString response) )
+
+        Http.BadPayload response _ ->
+            ( "Bad Payload", (toString response) )
 
 
 encodeCalEvent : CalEvent -> JE.Value
@@ -296,28 +298,22 @@ encodeCalEvent event =
 
 encodeCalendarEvents : CalEventList -> String
 encodeCalendarEvents eventList =
-    JE.encode 2 (JE.list (List.map encodeCalEvent calList))
+    JE.encode 2 (JE.list (List.map encodeCalEvent eventList))
 
 
 createCalendarEvents : NOAAApiRes -> CalEventList
 createCalendarEvents data =
     let
         tides =
-            data.data
-
-        stationData =
-            data.station
-
-        station =
-            stationData.name
+            data.predictions
     in
-        List.map (tideToCalEvent station) tides
+        List.map (tideToCalEvent) tides
             |> log "return tides"
 
 
-tideToCalEvent : String -> Tide -> CalEvent
-tideToCalEvent station tide =
-    { description = (getTideTypeString tide) ++ " -- " ++ station ++ " " ++ tide.date }
+tideToCalEvent : Tide -> CalEvent
+tideToCalEvent tide =
+    { description = (getTideTypeString tide) ++ " -- " ++ " " ++ tide.date }
 
 
 getTideTypeString : Tide -> String
