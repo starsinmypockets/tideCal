@@ -5,7 +5,8 @@ import Html.Attributes exposing (src, class, classList, id, for, type_, defaultV
 import Html.Events exposing (onClick, onInput, onWithOptions, Options)
 import Http
 import Debug exposing (log)
-import Json.Decode as JD exposing (..)
+import Json.Decode as JD exposing (Decoder)
+import Json.Encode as JE
 import Tuple
 
 
@@ -190,13 +191,13 @@ handleGApiRes res model_ =
             "getCalendars" ->
                 let
                     calDecoder =
-                        map Cal (field "summary" string)
+                        JD.map Cal (JD.field "summary" JD.string)
 
                     calListDecoder =
-                        list calDecoder
+                        JD.list calDecoder
 
                     cals =
-                        decodeString calListDecoder payload
+                        JD.decodeString calListDecoder payload
                 in
                     case cals of
                         Ok vals ->
@@ -217,41 +218,41 @@ handleGApiRes res model_ =
 
 stationDecoder : Decoder StationData
 stationDecoder =
-    map4
+    JD.map4
         StationData
-        (field "id" string)
-        (field "name" string)
-        (field "lat" string)
-        (field "lon" string)
+        (JD.field "id" JD.string)
+        (JD.field "name" JD.string)
+        (JD.field "lat" JD.string)
+        (JD.field "lon" JD.string)
 
 
 tideDecoder : Decoder Tide
 tideDecoder =
-    map2
+    JD.map2
         Tide
-        (field "t" string)
-        (field "ty" string)
+        (JD.field "t" JD.string)
+        (JD.field "ty" JD.string)
 
 
 tideListDecoder : Decoder TideList
 tideListDecoder =
-    (list tideDecoder)
+    (JD.list tideDecoder)
 
 
 noaaDecoder : Decoder NOAAApiRes
 noaaDecoder =
-    map2
+    JD.map2
         NOAAApiRes
-        (field "metadata" stationDecoder)
-        (field "data" tideListDecoder)
+        (JD.field "metadata" stationDecoder)
+        (JD.field "data" tideListDecoder)
 
 
-url =
+noaaUrl =
     "https://tidesandcurrents.noaa.gov/api/datagetter?station=9414290&begin_date=20120101&end_date=20120102&product=high_low&format=json&interval=hilo&units=english&time_zone=lst&datum=MTL"
 
 
 doNOOAReq =
-    Http.send NOAARes <| Http.get url noaaDecoder
+    Http.send NOAARes <| Http.get noaaUrl noaaDecoder
 
 
 handleNOAARes data model =
@@ -262,6 +263,10 @@ handleNOAARes data model =
 
         calEvents =
             createCalendarEvents data
+
+        calEventsJson =
+            encodeCalendarEvents calEvents
+                |> log "events json"
     in
         -- generate calendar data
         -- insert new calendar with events
@@ -276,6 +281,22 @@ handleNOAARes data model =
           }
         , Cmd.none
         )
+
+
+calList : CalEventList
+calList =
+    [ { description = "Foo" }, { description = "Bar" } ]
+
+
+encodeCalEvent : CalEvent -> JE.Value
+encodeCalEvent event =
+    JE.object
+        [ ( "description", JE.string event.description ) ]
+
+
+encodeCalendarEvents : CalEventList -> String
+encodeCalendarEvents eventList =
+    JE.encode 2 (JE.list (List.map encodeCalEvent calList))
 
 
 createCalendarEvents : NOAAApiRes -> CalEventList
