@@ -9,7 +9,7 @@ import Json.Decode as JD exposing (Decoder)
 import Json.Encode as JE
 import Tuple
 import Date exposing (Date, Day(..), day, dayOfWeek, month, year)
-import DatePicker
+import DatePicker exposing (defaultSettings, DateEvent(..), DatePicker)
 import Validate exposing (..)
 
 
@@ -57,8 +57,8 @@ type alias Model =
     , loading : Bool
 
     -- form data --
-    , startDate : String
-    , endDate : String
+    , startDate : Maybe Date
+    , endDate : Maybe Date
     , calName : String
     , units : String
     , station : String
@@ -69,43 +69,58 @@ type alias Model =
     , noaaData : Maybe NOAAApiRes
     , calEventsJson : Maybe String
     , targetCalId : Maybe String
+    , datePicker : DatePicker
     }
 
 
-model : Model
-model =
-    { --
-      client_id = "787419036517-pqu3ga58d833sr5c81jgebkdre0q9t76.apps.googleusercontent.com"
-    , discovery_docs = [ "https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest" ]
-    , scopes = "https://www.googleapis.com/auth/calendar"
-    , messages = []
-    , calendars = []
-    , loading = False
-
-    -- form data
-    , startDate = ""
-    , endDate = ""
-    , station = ""
-    , calName = ""
-    , units = "English"
-    , uiErrors = []
-
-    --
-    , error = Nothing
-    , noaaData = Nothing
-    , targetCalId = Nothing
-    , calEventsJson = Nothing
+resetModel model =
+    { model
+        | startDate = Nothing
+        , endDate = Nothing
+        , calName = ""
+        , units = ""
+        , station = ""
+        , uiErrors = []
     }
-
-
-resetModel : Model
-resetModel =
-    model
 
 
 init : ( Model, Cmd Msg )
 init =
-    ( model, fromElm ( [], "init" ) )
+    let
+        ( datePicker, datePickerFx ) =
+            DatePicker.init
+
+        model =
+            { --
+              client_id = "787419036517-pqu3ga58d833sr5c81jgebkdre0q9t76.apps.googleusercontent.com"
+            , discovery_docs = [ "https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest" ]
+            , scopes = "https://www.googleapis.com/auth/calendar"
+            , messages = []
+            , calendars = []
+            , loading = False
+
+            -- form data
+            , startDate = Nothing
+            , endDate = Nothing
+            , station = ""
+            , calName = ""
+            , units = "English"
+            , uiErrors = []
+
+            --
+            , error = Nothing
+            , noaaData = Nothing
+            , targetCalId = Nothing
+            , calEventsJson = Nothing
+            , datePicker = datePicker
+            }
+    in
+        ( model
+        , Cmd.batch
+            [ fromElm ( [], "init" )
+            , Cmd.map DoDatePicker datePickerFx
+            ]
+        )
 
 
 validateModel : Model -> List String
@@ -161,6 +176,7 @@ type Msg
     | CalName String
     | Units String
     | NOAARes (Result Http.Error NOAAApiRes)
+    | DoDatePicker DatePicker.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -191,7 +207,7 @@ update msg model =
                         , uiErrors = []
                         , loading = True
                       }
-                    , doNOOAReq
+                    , doNOOAReq model
                     )
 
         NOAARes (Ok data) ->
@@ -205,14 +221,9 @@ update msg model =
         NOAARes (Err msg) ->
             ( { model | messages = (handleHttpError msg) :: model.messages }, Cmd.none )
 
+        -- Form Interactions
         Station int ->
             ( { model | station = int }, Cmd.none )
-
-        StartDate date ->
-            ( { model | startDate = date }, Cmd.none )
-
-        EndDate date ->
-            ( { model | endDate = date }, Cmd.none )
 
         CalName name ->
             ( { model | calName = name }, Cmd.none )
@@ -220,8 +231,30 @@ update msg model =
         Units txt ->
             ( { model | units = txt }, Cmd.none )
 
+        DoDatePicker msg ->
+            toDatePicker msg model
+
         _ ->
             ( model, Cmd.none )
+
+
+toDatePicker msg model =
+    let
+        ( newDatePicker, datePickerFx, event ) =
+            DatePicker.update defaultSettings msg model.datePicker
+    in
+        ( { model
+            | startDate =
+                case event of
+                    Changed date ->
+                        date
+
+                    _ ->
+                        Nothing
+            , datePicker = newDatePicker
+          }
+        , Cmd.map DoDatePicker datePickerFx
+        )
 
 
 handleGApiRes : ApiRes -> Model -> ( Model, Cmd Msg )
@@ -278,7 +311,7 @@ handleGApiRes res model_ =
                             ( model, Cmd.none )
 
             "addEvents" ->
-                ( resetModel, Cmd.none )
+                ( (resetModel model), Cmd.none )
 
             "noGapi" ->
                 ( { model | uiErrors = [ "We're sorry, the the Google Calendar service is not available. Try reloading the page." ] }, Cmd.none )
@@ -316,15 +349,15 @@ noaaDecoder =
         (JD.field "predictions" tideListDecoder)
 
 
-noaaUrl =
+noaaUrl model =
     "https://tidesandcurrents.noaa.gov/api/datagetter?"
         ++ "station="
         ++ model.station
         ++ "&begin_date=20180101&end_date=20180102&product=predictions&format=json&interval=hilo&units=english&time_zone=lst&datum=MTL"
 
 
-doNOOAReq =
-    Http.send NOAARes <| Http.get noaaUrl noaaDecoder
+doNOOAReq model =
+    Http.send NOAARes <| Http.get (noaaUrl model) noaaDecoder
 
 
 handleNOAARes : NOAAApiRes -> Model -> ( Model, Cmd Msg )
@@ -482,12 +515,12 @@ view model =
             , a [ target "blank", href "https://tidesandcurrents.noaa.gov/tide_predictions.html" ] [ text "Find tide station ID here" ]
             , form [ class "row" ]
                 [ fieldset [ disabled (model.loading) ]
+                    [ DatePicker.view model.startDate defaultSettings model.datePicker |> Html.map DoDatePicker ]
+                , fieldset
+                    [ disabled (model.loading) ]
                     [ label [ for "station_id", class "col-md-4" ] [ text "Station Id" ]
+                    , label [] [ text "Test" ]
                     , input [ id "station_id", class "col-md-4", onInput Station, value model.station ] []
-                    , label [ for "start", class "col-md-4" ] [ text "Start Date" ]
-                    , input [ id "start", class "col-md-4", onInput StartDate, value model.startDate ] []
-                    , label [ for "end", class "col-md-4" ] [ text "End Date" ]
-                    , input [ id "end", class "col-md-4", onInput EndDate, value model.endDate ] []
                     , label [ for "calendar_name", class "col-md-4" ] [ text "Enter calendar name for import" ]
                     , input [ id "calendar_name ", class "col-md-4", onInput CalName, value model.calName ] []
                     , fieldset [ class "row", onInput Units ]
