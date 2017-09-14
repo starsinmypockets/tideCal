@@ -9,6 +9,7 @@ import Json.Decode as JD exposing (Decoder)
 import Json.Encode as JE
 import Tuple
 import Date exposing (Date, Day(..), day, dayOfWeek, month, year)
+import Validate exposing (..)
 
 
 -- import DatePicker exposing (defaultSettings)
@@ -46,39 +47,51 @@ type alias CalEventList =
 
 
 type alias Model =
-    { client_id : String
+    { --
+      client_id : String
     , discovery_docs : List String
     , scopes : String
     , messages : List ApiRes
     , calendars : List Cal
-    , startDate : Maybe String
-    , endDate : Maybe String
-    , calName : Maybe String
-    , units : Maybe String
+
+    -- form data --
+    , startDate : String
+    , endDate : String
+    , calName : String
+    , units : String
+    , station : String
+
+    --
     , error : Maybe String
     , noaaData : Maybe NOAAApiRes
     , calEventsJson : Maybe String
     , targetCalId : Maybe String
-    , station : Maybe String --@@TODO we need to get the station into the model somehow so we can add it to the calendar description
+    , formErrors : List String
     }
 
 
 model : Model
 model =
-    { client_id = "787419036517-pqu3ga58d833sr5c81jgebkdre0q9t76.apps.googleusercontent.com"
+    { --
+      client_id = "787419036517-pqu3ga58d833sr5c81jgebkdre0q9t76.apps.googleusercontent.com"
     , discovery_docs = [ "https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest" ]
     , scopes = "https://www.googleapis.com/auth/calendar"
     , messages = []
     , calendars = []
-    , startDate = Nothing
-    , endDate = Nothing
-    , station = Nothing
-    , calName = Nothing
-    , units = Just "English"
+
+    -- form data
+    , startDate = ""
+    , endDate = ""
+    , station = ""
+    , calName = ""
+
+    --
+    , units = "English"
     , error = Nothing
     , noaaData = Nothing
     , targetCalId = Nothing
     , calEventsJson = Nothing
+    , formErrors = []
     }
 
 
@@ -87,7 +100,15 @@ init =
     ( model, Cmd.none )
 
 
+validateModel : Model -> List String
+validateModel =
+    Validate.all
+        [ .calName >> ifBlank "Please enter a calendar name"
+        ]
 
+
+
+--        , .calName >> ifInvalid (\calName -> (List.string calName) < 6 ) "Please use a longer calendar name."
 ---- UPDATE ----
 
 
@@ -131,15 +152,19 @@ update msg model =
 
         Submit ->
             let
-                valid =
-                    (validateDates >> validateStation >> validateCalName) model
+                formErrors =
+                    validateModel model
+                        |> log "VALID"
             in
-                case valid of
-                    Err msg ->
-                        ( { model | messages = ( "Submit Err", msg ) :: model.messages }, Cmd.none )
-
-                    Ok msg ->
-                        ( { model | messages = ( "Submit Ok", msg ) :: model.messages }, doNOOAReq )
+                if (List.length formErrors > 0) then
+                    ( { model
+                        | messages = ( "Submit Err", "Form errors" ) :: model.messages
+                        , formErrors = formErrors
+                      }
+                    , Cmd.none
+                    )
+                else
+                    ( { model | messages = ( "Submit Ok", "Form Submit Success" ) :: model.messages }, doNOOAReq )
 
         NOAARes (Ok data) ->
             let
@@ -153,19 +178,19 @@ update msg model =
             ( { model | messages = (handleHttpError msg) :: model.messages }, Cmd.none )
 
         Station txt ->
-            ( { model | station = Just txt }, Cmd.none )
+            ( { model | station = txt }, Cmd.none )
 
         StartDate date ->
-            ( { model | startDate = Just date }, Cmd.none )
+            ( { model | startDate = date }, Cmd.none )
 
         EndDate date ->
-            ( { model | endDate = Just date }, Cmd.none )
+            ( { model | endDate = date }, Cmd.none )
 
         CalName name ->
-            ( { model | calName = Just name }, Cmd.none )
+            ( { model | calName = name }, Cmd.none )
 
         Units txt ->
-            ( { model | units = Just txt }, Cmd.none )
+            ( { model | units = txt }, Cmd.none )
 
         _ ->
             ( model, Cmd.none )
@@ -262,6 +287,7 @@ doNOOAReq =
     Http.send NOAARes <| Http.get noaaUrl noaaDecoder
 
 
+handleNOAARes : NOAAApiRes -> Model -> ( Model, Cmd Msg )
 handleNOAARes data model =
     let
         d =
@@ -275,20 +301,12 @@ handleNOAARes data model =
             encodeCalendarEvents calEvents
                 |> log "events json"
     in
-        -- generate calendar data
-        -- insert new calendar with events
-        --      create calendar
-        --      add events
-        -- catch that in update
-        --      confirm success
-        --done
         ( { model
             | messages = ( "NOAA Response SUCCESS", "see console" ) :: model.messages
             , noaaData = Just data
             , calEventsJson = Just calEventsJson
           }
-        , fromElm ( [ "testCal1" ], "addCalendar" )
-          -- get validated calname from model
+        , fromElm ( [ model.calName ], "addCalendar" )
         )
 
 
@@ -396,21 +414,6 @@ getTideDateString date =
 
 
 ---- VALIDATION ----
-
-
-validateDates model =
-    Ok "Ok"
-
-
-validateStation model =
-    Ok "Ok"
-
-
-validateCalName model =
-    Ok "Ok"
-
-
-
 ---- VIEW ----
 
 
