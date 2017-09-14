@@ -1,7 +1,7 @@
 port module Main exposing (..)
 
-import Html exposing (Html, text, div, img, h1, h2, h3, p, button, ul, li, input, label, form, fieldset)
-import Html.Attributes exposing (src, class, classList, id, for, type_, defaultValue, name, value)
+import Html exposing (Html, text, div, img, h1, h2, h3, p, button, ul, li, input, label, form, fieldset, a, span)
+import Html.Attributes exposing (src, class, classList, id, for, type_, defaultValue, name, value, disabled, target, href)
 import Html.Events exposing (onClick, onInput, onWithOptions, Options)
 import Http
 import Debug exposing (log)
@@ -53,6 +53,7 @@ type alias Model =
     , scopes : String
     , messages : List ApiRes
     , calendars : List Cal
+    , loading : Bool
 
     -- form data --
     , startDate : String
@@ -60,13 +61,13 @@ type alias Model =
     , calName : String
     , units : String
     , station : String
+    , uiErrors : List String
 
     --
     , error : Maybe String
     , noaaData : Maybe NOAAApiRes
     , calEventsJson : Maybe String
     , targetCalId : Maybe String
-    , formErrors : List String
     }
 
 
@@ -78,33 +79,53 @@ model =
     , scopes = "https://www.googleapis.com/auth/calendar"
     , messages = []
     , calendars = []
+    , loading = False
 
     -- form data
     , startDate = ""
     , endDate = ""
     , station = ""
     , calName = ""
+    , units = "English"
+    , uiErrors = []
 
     --
-    , units = "English"
     , error = Nothing
     , noaaData = Nothing
     , targetCalId = Nothing
     , calEventsJson = Nothing
-    , formErrors = []
     }
+
+
+resetModel : Model
+resetModel =
+    model
 
 
 init : ( Model, Cmd Msg )
 init =
-    ( model, Cmd.none )
+    ( model, fromElm ( [], "init" ) )
 
 
 validateModel : Model -> List String
 validateModel =
     Validate.all
         [ .calName >> ifBlank "Please enter a calendar name"
+        , .station >> ifInvalid validateStationId "Please choose a valid station number (see info button next to station field)"
         ]
+
+
+validateStationId val =
+    let
+        stationInt =
+            String.toInt val
+    in
+        case (String.toInt val) of
+            Ok num ->
+                num < 1000000 || num > 9999999
+
+            Err msg ->
+                True
 
 
 
@@ -152,19 +173,25 @@ update msg model =
 
         Submit ->
             let
-                formErrors =
+                uiErrors =
                     validateModel model
                         |> log "VALID"
             in
-                if (List.length formErrors > 0) then
+                if (List.length uiErrors > 0) then
                     ( { model
                         | messages = ( "Submit Err", "Form errors" ) :: model.messages
-                        , formErrors = formErrors
+                        , uiErrors = uiErrors
                       }
                     , Cmd.none
                     )
                 else
-                    ( { model | messages = ( "Submit Ok", "Form Submit Success" ) :: model.messages }, doNOOAReq )
+                    ( { model
+                        | messages = ( "Submit Ok", "Form Submit Success" ) :: model.messages
+                        , uiErrors = []
+                        , loading = True
+                      }
+                    , doNOOAReq
+                    )
 
         NOAARes (Ok data) ->
             let
@@ -177,8 +204,8 @@ update msg model =
         NOAARes (Err msg) ->
             ( { model | messages = (handleHttpError msg) :: model.messages }, Cmd.none )
 
-        Station txt ->
-            ( { model | station = txt }, Cmd.none )
+        Station int ->
+            ( { model | station = int }, Cmd.none )
 
         StartDate date ->
             ( { model | startDate = date }, Cmd.none )
@@ -249,6 +276,15 @@ handleGApiRes res model_ =
                         Nothing ->
                             ( model, Cmd.none )
 
+            "addEvents" ->
+                ( resetModel, Cmd.none )
+
+            "noGapi" ->
+                ( { model | uiErrors = [ "We're sorry, the the Google Calendar service is not available. Try reloading the page." ] }, Cmd.none )
+
+            "noGapiAuth" ->
+                ( { model | uiErrors = [ "We're sorry, you need to authenticate with google. Press \"AUTHENTICATE\"!" ] }, Cmd.none )
+
             -- noop
             _ ->
                 ( model, Cmd.none )
@@ -280,7 +316,10 @@ noaaDecoder =
 
 
 noaaUrl =
-    "https://tidesandcurrents.noaa.gov/api/datagetter?station=9414290&begin_date=20180101&end_date=20180102&product=predictions&format=json&interval=hilo&units=english&time_zone=lst&datum=MTL"
+    "https://tidesandcurrents.noaa.gov/api/datagetter?"
+        ++ "station="
+        ++ model.station
+        ++ "&begin_date=20180101&end_date=20180102&product=predictions&format=json&interval=hilo&units=english&time_zone=lst&datum=MTL"
 
 
 doNOOAReq =
@@ -426,32 +465,36 @@ view : Model -> Html Msg
 view model =
     div [ classList [ ( "row", True ), ( "container", True ) ] ]
         [ h1 [] [ text "Tides for Google Calendar" ]
+        , div [ classList [ ( "loading", model.loading ), ( "row", True ) ] ] []
         , p [] [ text introText ]
         , div [ class "row" ]
             [ h2 [] [ text "Your calendars" ]
             , ul [] (calendarList model.calendars)
             ]
+        , div [ classList [ ( "row", True ), ( "error-box", True ) ] ] [ (errorBox model.uiErrors) ]
         , div [ classList [ ( "row", True ), ( "buttons", True ) ] ]
             [ button [ onClick (Send ( [], "auth" )) ] [ text "Authenticate" ]
             , button [ onClick (Send ( [], "signout" )) ] [ text "Sign Out" ]
-            , button [ onClick (Send ( [], "init" )) ] [ text "INIT" ]
             ]
         , div [ class "row" ]
             [ h2 [ for "station_id" ] [ text "Select Tide Information" ]
+            , a [ target "blank", target "https://tidesandcurrents.noaa.gov/tide_predictions.html" ] [ text "Find tide station ID here" ]
             , form [ class "row" ]
-                [ label [ for "station_id", class "col-md-4" ] [ text "Station Id" ]
-                , input [ id "station_id", class "col-md-4", onInput Station ] []
-                , label [ for "start", class "col-md-4" ] [ text "Start Date" ]
-                , input [ id "start", class "col-md-4", onInput StartDate ] []
-                , label [ for "end", class "col-md-4" ] [ text "End Date" ]
-                , input [ id "end", class "col-md-4", onInput EndDate ] []
-                , label [ for "calendar_name", class "col-md-4" ] [ text "Enter calendar name for import" ]
-                , input [ id "calendar_name ", class "col-md-4", onInput CalName ] []
-                , fieldset [ class "row", onInput Units ]
-                    [ p [ class "col-md-3" ] [ text "Units:" ]
-                    , radio "English"
-                    , radio "Metric"
-                    , button [ onWithOptions "click" { preventDefault = True, stopPropagation = True } (JD.succeed Submit) ] [ text "Submit" ]
+                [ fieldset [ disabled (model.loading) ]
+                    [ label [ for "station_id", class "col-md-4" ] [ text "Station Id" ]
+                    , input [ id "station_id", class "col-md-4", onInput Station, value model.station ] []
+                    , label [ for "start", class "col-md-4" ] [ text "Start Date" ]
+                    , input [ id "start", class "col-md-4", onInput StartDate, value model.startDate ] []
+                    , label [ for "end", class "col-md-4" ] [ text "End Date" ]
+                    , input [ id "end", class "col-md-4", onInput EndDate, value model.endDate ] []
+                    , label [ for "calendar_name", class "col-md-4" ] [ text "Enter calendar name for import" ]
+                    , input [ id "calendar_name ", class "col-md-4", onInput CalName, value model.calName ] []
+                    , fieldset [ class "row", onInput Units ]
+                        [ p [ class "col-md-3" ] [ text "Units:" ]
+                        , radio "English"
+                        , radio "Metric"
+                        , button [ onWithOptions "click" { preventDefault = True, stopPropagation = True } (JD.succeed Submit) ] [ text "Submit" ]
+                        ]
                     ]
 
                 -- radio english / metric
@@ -504,6 +547,20 @@ calendarList cals =
         )
         []
         cals
+
+
+errorBox uiErrors =
+    div [ class "form-errors" ]
+        [ ul [] (errorList uiErrors)
+        ]
+
+
+errorList uiErrors =
+    List.map
+        (\errMsg ->
+            li [ class "ui-error" ] [ text errMsg ]
+        )
+        uiErrors
 
 
 
