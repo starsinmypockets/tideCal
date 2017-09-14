@@ -9,6 +9,7 @@ import Json.Decode as JD exposing (Decoder)
 import Json.Encode as JE
 import Tuple
 import Date exposing (Date, Day(..), day, dayOfWeek, month, year)
+import DatePicker
 import Validate exposing (..)
 
 
@@ -478,7 +479,7 @@ view model =
             ]
         , div [ class "row" ]
             [ h2 [ for "station_id" ] [ text "Select Tide Information" ]
-            , a [ target "blank", target "https://tidesandcurrents.noaa.gov/tide_predictions.html" ] [ text "Find tide station ID here" ]
+            , a [ target "blank", href "https://tidesandcurrents.noaa.gov/tide_predictions.html" ] [ text "Find tide station ID here" ]
             , form [ class "row" ]
                 [ fieldset [ disabled (model.loading) ]
                     [ label [ for "station_id", class "col-md-4" ] [ text "Station Id" ]
