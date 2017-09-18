@@ -1,11 +1,6 @@
-body {
+ body {
   font-family: 'Source Sans Pro', 'Trebuchet MS', 'Lucida Grande', 'Bitstream Vera Sans', 'Helvetica Neue', sans-serif;
   color: #293c4b;
-}
-
-img {
-  margin: 20px 0;
-  max-width: 200px;
 }
 
 
@@ -16,6 +11,11 @@ label {margin-right:1em}
 input[type=radio] {margin-right:.4em} 
 .form-errors {color:white; background-color:indianred}
 
+/** datepicker **/
+.elm-datepicker--picker {background-color:white}
+#dp2 .elm-datepicker--picker {right:0}
+
+/** loader **/
 .loading {
     position: fixed;
     top: 50%;
@@ -35,3 +35,5 @@ input[type=radio] {margin-right:.4em}
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
+

@@ -8,12 +8,12 @@ import Debug exposing (log)
 import Json.Decode as JD exposing (Decoder)
 import Json.Encode as JE
 import Tuple
+import Dict
 import Date exposing (Date, Day(..), day, dayOfWeek, month, year)
 import DatePicker exposing (defaultSettings, DateEvent(..), DatePicker)
 import Validate exposing (..)
 
 
--- import DatePicker exposing (defaultSettings)
 ---- MODEL ----
 
 
@@ -73,6 +73,24 @@ type alias Model =
     }
 
 
+months : Dict.Dict String String
+months =
+    Dict.fromList
+        [ ( "Jan", "01" )
+        , ( "Feb", "02" )
+        , ( "Mar", "03" )
+        , ( "Apr", "04" )
+        , ( "May", "05" )
+        , ( "Jun", "06" )
+        , ( "Jul", "07" )
+        , ( "Aug", "08" )
+        , ( "Sep", "09" )
+        , ( "Oct", "10" )
+        , ( "Nov", "11" )
+        , ( "Dec", "12" )
+        ]
+
+
 resetModel model =
     { model
         | startDate = Nothing
@@ -81,6 +99,23 @@ resetModel model =
         , units = ""
         , station = ""
         , uiErrors = []
+        , loading = False
+    }
+
+
+datePickerSettings =
+    { defaultSettings
+        | inputClassList = [ ( "form-control", True ) ]
+        , inputId = Just "tc-datepicker"
+        , inputName = Just "tc-datepicker"
+    }
+
+
+datePicker2Settings =
+    { defaultSettings
+        | inputClassList = [ ( "form-control", True ) ]
+        , inputId = Just "tc-datepicker2"
+        , inputName = Just "tc-datepicker2"
     }
 
 
@@ -118,7 +153,7 @@ init =
         ( model
         , Cmd.batch
             [ fromElm ( [], "init" )
-            , Cmd.map DoDatePicker datePickerFx
+            , Cmd.map (DoDatePicker Start) datePickerFx
             ]
         )
 
@@ -164,6 +199,11 @@ type alias ApiRes =
     ( GapiRes, ApiCmd )
 
 
+type StartEnd
+    = Start
+    | End
+
+
 type Msg
     = Signout
     | Send ( List String, String )
@@ -176,7 +216,7 @@ type Msg
     | CalName String
     | Units String
     | NOAARes (Result Http.Error NOAAApiRes)
-    | DoDatePicker DatePicker.Msg
+    | DoDatePicker StartEnd DatePicker.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -231,30 +271,50 @@ update msg model =
         Units txt ->
             ( { model | units = txt }, Cmd.none )
 
-        DoDatePicker msg ->
-            toDatePicker msg model
+        DoDatePicker field msg ->
+            toDatePicker field msg model
 
         _ ->
             ( model, Cmd.none )
 
 
-toDatePicker msg model =
-    let
-        ( newDatePicker, datePickerFx, event ) =
-            DatePicker.update defaultSettings msg model.datePicker
-    in
-        ( { model
-            | startDate =
-                case event of
-                    Changed date ->
-                        date
+toDatePicker field msg model =
+    case field of
+        Start ->
+            let
+                ( newDatePicker, datePickerFx, event ) =
+                    DatePicker.update datePickerSettings msg model.datePicker
+            in
+                ( { model
+                    | startDate =
+                        case event of
+                            Changed date ->
+                                date
 
-                    _ ->
-                        Nothing
-            , datePicker = newDatePicker
-          }
-        , Cmd.map DoDatePicker datePickerFx
-        )
+                            _ ->
+                                Nothing
+                    , datePicker = newDatePicker
+                  }
+                , Cmd.map (DoDatePicker Start) datePickerFx
+                )
+
+        End ->
+            let
+                ( newDatePicker, datePickerFx, event ) =
+                    DatePicker.update datePicker2Settings msg model.datePicker
+            in
+                ( { model
+                    | endDate =
+                        case event of
+                            Changed date ->
+                                date
+
+                            _ ->
+                                Nothing
+                    , datePicker = newDatePicker
+                  }
+                , Cmd.map (DoDatePicker End) datePickerFx
+                )
 
 
 handleGApiRes : ApiRes -> Model -> ( Model, Cmd Msg )
@@ -326,7 +386,6 @@ handleGApiRes res model_ =
 
 
 --- NOAA API STUFF ---
--- @@TODO - figure out how to decode the api response from NOAA
 
 
 tideDecoder : Decoder Tide
@@ -349,11 +408,33 @@ noaaDecoder =
         (JD.field "predictions" tideListDecoder)
 
 
+
+-- @TODO - use validated dates- not maybes
+-- if we have good dates on model valid,
+-- we shouldn't need to mess with Maybe here
+
+
 noaaUrl model =
     "https://tidesandcurrents.noaa.gov/api/datagetter?"
         ++ "station="
         ++ model.station
-        ++ "&begin_date=20180101&end_date=20180102&product=predictions&format=json&interval=hilo&units=english&time_zone=lst&datum=MTL"
+        ++ "&begin_date="
+        ++ (noaaApiDateFromElmDate model.startDate)
+        ++ "&end_date="
+        ++ (noaaApiDateFromElmDate model.endDate)
+        ++ "&product=predictions&format=json&interval=hilo&units=english&time_zone=lst&datum=MTL"
+
+
+noaaApiDateFromElmDate date =
+    case date of
+        Just date_ ->
+            (toString (Date.year date_))
+                ++ Maybe.withDefault "DDD" (Dict.get (toString (Date.month date_)) months)
+                ++ (toString (Date.day date_))
+                |> log "date-->>"
+
+        Nothing ->
+            "XXXXXXX"
 
 
 doNOOAReq model =
@@ -497,7 +578,7 @@ introText =
 
 view : Model -> Html Msg
 view model =
-    div [ classList [ ( "row", True ), ( "container", True ) ] ]
+    div [ classList [ ( "container", True ) ] ]
         [ h1 [] [ text "Tides for Google Calendar" ]
         , div [ classList [ ( "loading", model.loading ), ( "row", True ) ] ] []
         , p [] [ text introText ]
@@ -513,27 +594,29 @@ view model =
         , div [ class "row" ]
             [ h2 [ for "station_id" ] [ text "Select Tide Information" ]
             , a [ target "blank", href "https://tidesandcurrents.noaa.gov/tide_predictions.html" ] [ text "Find tide station ID here" ]
-            , form [ class "row" ]
+            , form []
                 [ fieldset [ disabled (model.loading) ]
-                    [ DatePicker.view model.startDate defaultSettings model.datePicker |> Html.map DoDatePicker ]
-                , fieldset
-                    [ disabled (model.loading) ]
-                    [ label [ for "station_id", class "col-md-4" ] [ text "Station Id" ]
-                    , label [] [ text "Test" ]
-                    , input [ id "station_id", class "col-md-4", onInput Station, value model.station ] []
-                    , label [ for "calendar_name", class "col-md-4" ] [ text "Enter calendar name for import" ]
-                    , input [ id "calendar_name ", class "col-md-4", onInput CalName, value model.calName ] []
-                    , fieldset [ class "row", onInput Units ]
-                        [ p [ class "col-md-3" ] [ text "Units:" ]
-                        , radio "English"
-                        , radio "Metric"
-                        , button [ onWithOptions "click" { preventDefault = True, stopPropagation = True } (JD.succeed Submit) ] [ text "Submit" ]
+                    [ label [ for "station_id" ] [ text "Station Id" ]
+                    , input [ id "station_id", class "form-control", onInput Station, value model.station ] []
+                    , label [ for "calendar_name" ] [ text "Enter calendar name for import" ]
+                    , input [ id "calendar_name ", class "form-control", onInput CalName, value model.calName ] []
+                    , div [ class "row" ]
+                        [ div [ id "dp1", class "col-sm-4" ]
+                            [ label [] [ text "Start Date" ]
+                            , DatePicker.view model.startDate datePickerSettings model.datePicker |> Html.map (DoDatePicker Start)
+                            ]
+                        , div [ id "dp2", class "col-sm-4" ]
+                            [ label [] [ text "End Date" ]
+                            , DatePicker.view model.endDate datePicker2Settings model.datePicker |> Html.map (DoDatePicker End)
+                            ]
                         ]
+                    , fieldset [ onInput Units ]
+                        [ radio
+                            "English"
+                        , radio "Metric"
+                        ]
+                    , button [ onWithOptions "click" { preventDefault = True, stopPropagation = True } (JD.succeed Submit) ] [ text "Submit" ]
                     ]
-
-                -- radio english / metric
-                -- time zone default your time zone
-                --
                 ]
             ]
         , div [ class "row" ]
@@ -551,7 +634,7 @@ radio : String -> Html msg
 radio txt =
     label
         [ class "radios" ]
-        [ input [ type_ "radio", name "units" ] []
+        [ input [ type_ "radio", class "form-control", name "units" ] []
         , text txt
         ]
 

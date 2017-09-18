@@ -15,9 +15,9 @@ var SCOPES = "https://www.googleapis.com/auth/calendar";
 app.ports.fromElm.subscribe(function (msg) {
   var payload = msg[0];
   var cmd = msg[1];
-  var debug = true;
+  var debug = false;
   console.log("google", gapi);
-  console.log(">>>",msg,payload,cmd); 
+  console.log(">>>",msg,"payload",payload,"cmd",cmd); 
   
   if (!gapi) return app.ports.fromJs.send(["Warning - request ignored. GAPI not present.", "noGapi"])
 
@@ -44,6 +44,7 @@ app.ports.fromElm.subscribe(function (msg) {
     case "signout":
       gapi.auth2.getAuthInstance().signOut();
       app.ports.fromJs.send(["Wait for status update", "signout"]);
+      break;
 
     case "getCalendars":
         console.log("gc1")
@@ -58,6 +59,7 @@ app.ports.fromElm.subscribe(function (msg) {
       break;
 
     case "addCalendar":
+      console.log('addCalendar', payload);
       addCalendar(payload[0])
       break;
     
@@ -65,6 +67,7 @@ app.ports.fromElm.subscribe(function (msg) {
       var calId = payload[0];
       var events = JSON.parse(payload[1]);
       addEvents(calId, events);
+      break;
   }
 })
 
