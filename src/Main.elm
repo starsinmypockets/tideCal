@@ -577,7 +577,7 @@ getTideDateString date =
 
 introText : String
 introText =
-    "Uses the https://tidesandcurrents.noaa.gov/api/ API to generate google calendar events and to import them into a new or existing calendar. ** DISCLAIMER ** This is a beta product - please use at your own discretion. To contribute or report an issue visit \n    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat."
+    "This tool uses the https://tidesandcurrents.noaa.gov API to generate google calendar events for a given tide station and to import them into a new google calendar. ** DISCLAIMER ** This is a <del>beta</del> alpha product. Please use at your own discretion. To report an issue, request a feature or to contribute click 'issues'. If you like iy, give it a star. Thanks to the Elm community for help with this, my first Elm app! http://elm-lang.org/"
 
 
 view : Model -> Html Msg

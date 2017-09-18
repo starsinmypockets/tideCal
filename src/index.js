@@ -16,8 +16,6 @@ app.ports.fromElm.subscribe(function (msg) {
   var payload = msg[0];
   var cmd = msg[1];
   var debug = false;
-  console.log("google", gapi);
-  console.log(">>>",msg,"payload",payload,"cmd",cmd); 
   
   if (!gapi) return app.ports.fromJs.send(["Warning - request ignored. GAPI not present.", "noGapi"])
 
@@ -46,7 +44,6 @@ app.ports.fromElm.subscribe(function (msg) {
       break;
 
     case "getCalendars":
-        console.log("gc1")
         gapi.client.calendar.calendarList.list().then(function (res) {
           var items = res.result.items;
           console.log("calendarList", items)
