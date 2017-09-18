@@ -1,7 +1,7 @@
 port module Main exposing (..)
 
 import Html exposing (Html, text, div, img, h1, h2, h3, p, button, ul, li, input, label, form, fieldset, a, span)
-import Html.Attributes exposing (src, class, classList, id, for, type_, defaultValue, name, value, disabled, target, href)
+import Html.Attributes exposing (src, class, classList, id, for, type_, defaultValue, name, value, disabled, target, href, hidden)
 import Html.Events exposing (onClick, onInput, onWithOptions, Options)
 import Http
 import Debug exposing (log)
@@ -50,6 +50,7 @@ type alias CalEventList =
 type alias Model =
     { --
       client_id : String
+    , signinStatus : Bool
     , discovery_docs : List String
     , scopes : String
     , messages : List ApiRes
@@ -128,6 +129,7 @@ init =
         model =
             { --
               client_id = "787419036517-pqu3ga58d833sr5c81jgebkdre0q9t76.apps.googleusercontent.com"
+            , signinStatus = False
             , discovery_docs = [ "https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest" ]
             , scopes = "https://www.googleapis.com/auth/calendar"
             , messages = []
@@ -177,11 +179,6 @@ validateStationId val =
 
             Err msg ->
                 True
-
-
-
---        , .calName >> ifInvalid (\calName -> (List.string calName) < 6 ) "Please use a longer calendar name."
----- UPDATE ----
 
 
 port fromElm : ( List String, String ) -> Cmd msg
@@ -340,6 +337,19 @@ handleGApiRes res model_ =
             "signout" ->
                 ( { model | calendars = [] }, Cmd.none )
 
+            "updateSigninStatus" ->
+                let
+                    val =
+                        JD.decodeString JD.bool payload
+                            |> log "signinStatus"
+                in
+                    case val of
+                        Ok status ->
+                            ( { model | signinStatus = status }, Cmd.none )
+
+                        Err msg ->
+                            ( { model | signinStatus = False }, Cmd.none )
+
             "getCalendars" ->
                 let
                     calDecoder =
@@ -406,12 +416,6 @@ noaaDecoder =
     JD.map
         NOAAApiRes
         (JD.field "predictions" tideListDecoder)
-
-
-
--- @TODO - use validated dates- not maybes
--- if we have good dates on model valid,
--- we shouldn't need to mess with Maybe here
 
 
 noaaUrl model =
@@ -588,8 +592,8 @@ view model =
             ]
         , div [ classList [ ( "row", True ), ( "error-box", True ) ] ] [ (errorBox model.uiErrors) ]
         , div [ classList [ ( "row", True ), ( "buttons", True ) ] ]
-            [ button [ onClick (Send ( [], "auth" )) ] [ text "Authenticate" ]
-            , button [ onClick (Send ( [], "signout" )) ] [ text "Sign Out" ]
+            [ button [ onClick (Send ( [], "auth" )), hidden (model.signinStatus == True) ] [ text "Authenticate" ]
+            , button [ onClick (Send ( [], "signout" )), hidden (model.signinStatus == False) ] [ text "Sign Out" ]
             ]
         , div [ class "row" ]
             [ h2 [ for "station_id" ] [ text "Select Tide Information" ]

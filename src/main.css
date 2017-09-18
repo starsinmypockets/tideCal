@@ -10,6 +10,7 @@ label {margin-right:1em}
 .buttons button {margin:1em}
 input[type=radio] {margin-right:.4em} 
 .form-errors {color:white; background-color:indianred}
+.github-buttons {float:right; margin-right: 2em}
 
 /** datepicker **/
 .elm-datepicker--picker {background-color:white}

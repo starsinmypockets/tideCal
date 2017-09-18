@@ -25,7 +25,6 @@ app.ports.fromElm.subscribe(function (msg) {
 
   switch (cmd) {
 		case "init":
-      console.log("i")
       gapi.load('client:auth2', initClient);
 			break;
 
@@ -81,9 +80,8 @@ function initClient() {
 			scope: SCOPES
 		}).then(function () {
       var status = getSigninStatus();
-      // update signin status
       gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
-      app.ports.fromJs.send(["signinStatus- " + status, "init"]);
+      app.ports.fromJs.send(["" + status, "updateSigninStatus"]);
 		});
   }
 
