@@ -17,7 +17,7 @@ app.ports.fromElm.subscribe(function (msg) {
   var cmd = msg[1];
   var debug = false;
   
-  if (!gapi) return app.ports.fromJs.send(["Warning - request ignored. GAPI not present.", "noGapi"])
+  if (typeof gapi === 'undefined') return app.ports.fromJs.send(["Warning - request ignored. GAPI not present.", "noGapi"])
 
   if (debug) return ([["noop"], "noop"]);
 
