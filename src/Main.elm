@@ -432,10 +432,18 @@ noaaUrl model =
 noaaApiDateFromElmDate date =
     case date of
         Just date_ ->
-            (toString (Date.year date_))
-                ++ Maybe.withDefault "DDD" (Dict.get (toString (Date.month date_)) months)
-                ++ (toString (Date.day date_))
-                |> log "date-->>"
+            let
+                year =
+                    toString (Date.year date_)
+
+                month =
+                    Maybe.withDefault "MMMM" (Dict.get (toString (Date.month date_)) months)
+
+                day =
+                    toString (Date.day date_)
+                        |> String.padLeft 2 '0'
+            in
+                year ++ month ++ day |> log "date-->>"
 
         Nothing ->
             "XXXXXXX"
