@@ -71,6 +71,8 @@ type alias Model =
     , calEventsJson : Maybe String
     , targetCalId : Maybe String
     , datePicker : DatePicker
+    , showLog: Bool
+    
     }
 
 
@@ -150,6 +152,7 @@ init =
             , targetCalId = Nothing
             , calEventsJson = Nothing
             , datePicker = datePicker
+            , showLog = False
             }
     in
         ( model
@@ -212,6 +215,7 @@ type Msg
     | EndDate String
     | CalName String
     | Units String
+    | ShowLog Bool
     | NOAARes (Result Http.Error NOAAApiRes)
     | DoDatePicker StartEnd DatePicker.Msg
 
@@ -261,6 +265,13 @@ update msg model =
         -- Form Interactions
         Station int ->
             ( { model | station = int }, Cmd.none )
+
+        ShowLog val ->
+            let
+                d = val
+                    |> log "showLog"
+            in
+                ( {model | showLog = (not model.showLog)})
 
         CalName name ->
             ( { model | calName = name }, Cmd.none )
@@ -633,7 +644,8 @@ view model =
             ]
         , div [ class "row" ]
             [ h2 [] [ text "debug log" ]
-            , ul [] (messageList model.messages)
+              input [type="checkbox", onInput ShowLog ]
+            , ul [hidden (model.showLog == False)] (messageList model.messages)
             ]
         ]
 
