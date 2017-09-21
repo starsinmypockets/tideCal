@@ -1,7 +1,7 @@
 port module Main exposing (..)
 
 import Html exposing (Html, text, div, img, h1, h2, h3, p, button, ul, li, input, label, form, fieldset, a, span)
-import Html.Attributes exposing (src, class, classList, id, for, type_, defaultValue, name, value, disabled, target, href, hidden)
+import Html.Attributes exposing (src, checked, class, classList, id, for, type_, defaultValue, name, value, disabled, target, href, hidden)
 import Html.Events exposing (onClick, onInput, onWithOptions, Options)
 import Http
 import Debug exposing (log)
@@ -71,8 +71,7 @@ type alias Model =
     , calEventsJson : Maybe String
     , targetCalId : Maybe String
     , datePicker : DatePicker
-    , showLog: Bool
-    
+    , showLog : String
     }
 
 
@@ -152,7 +151,7 @@ init =
             , targetCalId = Nothing
             , calEventsJson = Nothing
             , datePicker = datePicker
-            , showLog = False
+            , showLog = "false"
             }
     in
         ( model
@@ -215,7 +214,7 @@ type Msg
     | EndDate String
     | CalName String
     | Units String
-    | ShowLog Bool
+    | ShowLog
     | NOAARes (Result Http.Error NOAAApiRes)
     | DoDatePicker StartEnd DatePicker.Msg
 
@@ -266,12 +265,17 @@ update msg model =
         Station int ->
             ( { model | station = int }, Cmd.none )
 
-        ShowLog val ->
-            let
-                d = val
-                    |> log "showLog"
-            in
-                ( {model | showLog = (not model.showLog)})
+        ShowLog ->
+            ( { model
+                | showLog =
+                    (if model.showLog == "false" then
+                        "true"
+                     else
+                        "false"
+                    )
+              }
+            , Cmd.none
+            )
 
         CalName name ->
             ( { model | calName = name }, Cmd.none )
@@ -644,8 +648,9 @@ view model =
             ]
         , div [ class "row" ]
             [ h2 [] [ text "debug log" ]
-              input [type="checkbox", onInput ShowLog ]
-            , ul [hidden (model.showLog == False)] (messageList model.messages)
+            , input [ type_ "checkbox", id "toggle_log", onClick ShowLog, checked (model.showLog == "true") ] []
+            , label [ for "toggle_log" ] [ text "Toggle debug log" ]
+            , ul [ hidden (model.showLog == "false") ] (messageList model.messages)
             ]
         ]
 

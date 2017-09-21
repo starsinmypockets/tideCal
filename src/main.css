@@ -9,6 +9,7 @@ label {margin-right:1em}
 #root {margin: 2em}
 .buttons button {margin:1em}
 input[type=radio] {margin-right:.4em} 
+input[type="checkbox"] {margin-right: .5em}
 .form-errors {color:white; background-color:indianred}
 .github-buttons {float:right; margin-right: 2em}
 
@@ -36,5 +37,4 @@ input[type=radio] {margin-right:.4em}
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
-
 
