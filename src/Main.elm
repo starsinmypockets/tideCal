@@ -256,7 +256,7 @@ update msg model =
                 handleNOAARes data model
 
         NOAARes (Err msg) ->
-            ( { model | messages = (handleHttpError msg) :: model.messages }, Cmd.none )
+            ( { model | messages = (handleHttpError msg) :: model.messages, loading = False }, Cmd.none )
 
         -- Form Interactions
         Station int ->

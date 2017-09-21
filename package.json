@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "elm-app start" ,
-    "build": "elm-make TideCal.elm --output=index.html"
+    "build": "elm-app build"
   },
   "keywords": [
     "google",
