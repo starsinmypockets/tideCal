@@ -131,3 +131,35 @@ function loadApp() {
 	  })
 	}
 }
+
+window.onclick = function (e) {
+	var dp1 = document.getElementById("tc-datepicker");
+	var dp2 = document.getElementById("tc-datepicker2");
+	var dp1foc = (dp1 === document.activeElement);
+	var dp2foc = (dp2 === document.activeElement);
+
+	if (dp1foc) {
+		hidePicker(dp2);
+		showPicker(dp1);
+	} else if (dp2foc) {
+		hidePicker(dp1);
+		showPicker(dp2);		
+	} else {
+		hidePicker(dp1);
+		hidePicker(dp2);
+	}
+}
+
+function hidePicker (el) {
+		var picker = el.parentElement.getElementsByClassName("elm-datepicker--picker")[0];
+        if (picker) {
+                picker.style.display = "none";
+                    }
+}
+
+function showPicker (el) {
+      var picker = el.parentElement.getElementsByClassName("elm-datepicker--picker")[0];
+		if (picker) {
+			picker.style.display = "block";
+		}
+}
