@@ -3,8 +3,13 @@
   "version": "0.0.2",
   "description": "Import local tides to google calendar",
   "main": "index.js",
+  "source-directories": [
+    ".",
+    ".." ,
+    "../src"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "elm-test tests/Tests.elm",
     "start": "elm-app start" ,
     "build": "elm-app build"
   },

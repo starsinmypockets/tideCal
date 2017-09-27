@@ -3,6 +3,8 @@ module Tests exposing (..)
 import Test exposing (..)
 import Expect
 import String
+import Main
+import Dict
 
 
 -- Check out http://package.elm-lang.org/packages/elm-community/elm-test/latest to learn more about testing in Elm!
@@ -17,7 +19,7 @@ all =
         , test "String.left" <|
             \_ ->
                 Expect.equal "a" (String.left 1 "abcdefg")
-        , test "This test should fail" <|
+        , test "Month vals have leading zeros" <|
             \_ ->
-                Expect.fail "failed as expected!"
+                Expect.equal (Dict.get "Jan" Main.months) (Just "01")
         ]
