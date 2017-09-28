@@ -5,6 +5,7 @@ import Expect
 import String
 import Main
 import Dict
+import Date
 import DatePicker exposing (defaultSettings, DateEvent(..), DatePicker)
 
 
@@ -61,14 +62,58 @@ all =
                 \_ ->
                     Expect.equal model.uiErrors []
 
+            -- reset model
             -- form validation
-            , test "Too small station id number invalid" <|
+            , test "Too small station id fails validation" <|
                 \_ ->
                     Expect.equal (Main.validateStationId "100") True
-            , test "Too large station id number invalid" <|
+            , test "Too large station id fails validation" <|
                 \_ ->
                     Expect.equal (Main.validateStationId "100000000000000") True
-            , test "Valid station id valid" <|
+            , test "Station id with letters fail validation" <|
+                \_ ->
+                    Expect.equal (Main.validateStationId "7A00000") True
+            , test "Valid station id passes validation" <|
                 \_ ->
                     Expect.equal (Main.validateStationId "7000000") False
+
+            -- DATES
+            --  noaaApiDateFromElmDate
+            , test "Date formatter emits xxx's for invalid date" <|
+                \_ ->
+                    Expect.equal (Main.noaaApiDateFromElmDate Nothing) "XXXXXXX"
+            , test "Date formatter handles valid dates as expected" <|
+                \_ ->
+                    let
+                        d =
+                            dateToMaybe "1/1/2010"
+                    in
+                        Expect.equal (Main.noaaApiDateFromElmDate d) "20100101"
+
+            -- NOAA API
+            , test "NOAA api request sane" <|
+                \_ ->
+                    let
+                        baseUrl =
+                            "https://tidesandcurrents.noaa.gov/api/datagetter?"
+
+                        defaults =
+                            "&product=predictions&format=json&interval=hilo&units=english&time_zone=lst&datum=MTL"
+
+                        m =
+                            { model | station = "7000000", startDate = (dateToMaybe "10102020"), endDate = (dateToMaybe "10102021") }
+
+                        validUrl =
+                            baseUrl ++ "station=" ++ m.station ++ "&begin_date=" ++ (Main.noaaApiDateFromElmDate m.startDate) ++ "&end_date=" ++ (Main.noaaApiDateFromElmDate m.endDate) ++ defaults
+                    in
+                        Expect.equal (Main.noaaUrl m) validUrl
             ]
+
+
+dateToMaybe dateString =
+    case Date.fromString dateString of
+        Ok val ->
+            Just val
+
+        Err msg ->
+            Nothing
