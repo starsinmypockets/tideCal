@@ -151,15 +151,19 @@ window.onclick = function (e) {
 }
 
 function hidePicker (el) {
+  setTimeout(function () {
 		var picker = el.parentElement.getElementsByClassName("elm-datepicker--picker")[0];
         if (picker) {
                 picker.style.display = "none";
                     }
+  }, 200)
 }
 
 function showPicker (el) {
+  setTimeout(function () {
       var picker = el.parentElement.getElementsByClassName("elm-datepicker--picker")[0];
 		if (picker) {
 			picker.style.display = "block";
 		}
+  }, 200)
 }
