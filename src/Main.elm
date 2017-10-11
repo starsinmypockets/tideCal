@@ -71,6 +71,7 @@ type alias Model =
     , calEventsJson : Maybe String
     , targetCalId : Maybe String
     , datePicker : DatePicker
+    , datePicker2 : DatePicker
     , showLog : String
     }
 
@@ -127,6 +128,9 @@ init =
         ( datePicker, datePickerFx ) =
             DatePicker.init
 
+        ( datePicker2, datePicker2Fx ) =
+            DatePicker.init
+
         model =
             { --
               client_id = "787419036517-pqu3ga58d833sr5c81jgebkdre0q9t76.apps.googleusercontent.com"
@@ -151,6 +155,7 @@ init =
             , targetCalId = Nothing
             , calEventsJson = Nothing
             , datePicker = datePicker
+            , datePicker2 = datePicker2
             , showLog = "false"
             }
     in
@@ -158,6 +163,7 @@ init =
         , Cmd.batch
             [ fromElm ( [], "init" )
             , Cmd.map (DoDatePicker Start) datePickerFx
+            , Cmd.map (DoDatePicker End) datePicker2Fx
             ]
         )
 
@@ -313,7 +319,7 @@ toDatePicker field msg model =
         End ->
             let
                 ( newDatePicker, datePickerFx, event ) =
-                    DatePicker.update datePicker2Settings msg model.datePicker
+                    DatePicker.update datePicker2Settings msg model.datePicker2
             in
                 ( { model
                     | endDate =
@@ -323,7 +329,7 @@ toDatePicker field msg model =
 
                             _ ->
                                 Nothing
-                    , datePicker = newDatePicker
+                    , datePicker2 = newDatePicker
                   }
                 , Cmd.map (DoDatePicker End) datePickerFx
                 )
@@ -634,7 +640,7 @@ view model =
                             ]
                         , div [ id "dp2", class "col-sm-4" ]
                             [ label [] [ text "End Date" ]
-                            , DatePicker.view model.endDate datePicker2Settings model.datePicker |> Html.map (DoDatePicker End)
+                            , DatePicker.view model.endDate datePicker2Settings model.datePicker2 |> Html.map (DoDatePicker End)
                             ]
                         ]
                     , fieldset [ onInput Units ]
